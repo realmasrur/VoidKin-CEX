@@ -1,0 +1,5 @@
+@tailwind base;@tailwind components;@tailwind utilities;
+body{background:radial-gradient(60rem 30rem at 50% -10%,#2a1260 0,#08060f 60%) fixed #08060f;color:#ece8f7;min-height:100vh}
+@keyframes rise{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.pop{animation:rise .35s cubic-bezier(.2,.8,.2,1)}
+@media(prefers-reduced-motion:reduce){.pop{animation:none}}
