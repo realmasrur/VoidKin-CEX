@@ -15,9 +15,10 @@ const H = {
   },
   async me({ me, d }) {
     const u = await d.collection("users").findOne({ _id: me });
-    const t = await d.collection("tx").find({ $or: [{ from: me }, { to: me }] }).sort({ at: -1 }).limit(40).toArray();
+    const t = await d.collection("tx").find({ $or: [{ from: me }, { to: me }] }).sort({ at: -1 }).limit(100).toArray();
     const p = await d.collection("packets").find({ by: me }).sort({ at: -1 }).limit(15).toArray();
-    return { u: { uid: u.uid, name: u.name, bal: u.bal, addr: u.addr }, t: t.map((x) => ({ type: x.type, asset: x.asset, amt: x.amt, meta: x.meta, at: x.at, in: String(x.to) === String(me) })), p: p.map((x) => ({ code: x.code, asset: x.asset, total: x.total, left: x.left, n: x.n, leftN: x.leftN })) };
+    const st = Object.fromEntries((await d.collection("tx").aggregate([{ $match: { $or: [{ from: me }, { to: me }], type: { $in: ["deposit", "withdraw"] }, asset: "USDT" } }, { $group: { _id: "$type", s: { $sum: "$amt" } } }]).toArray()).map((x) => [x._id, x.s]));
+    return { st, u: { uid: u.uid, name: u.name, email: u.email, since: u.createdAt, bal: u.bal, addr: u.addr }, t: t.map((x) => ({ type: x.type, asset: x.asset, amt: x.amt, meta: x.meta, at: x.at, in: String(x.to) === String(me) })), p: p.map((x) => ({ code: x.code, asset: x.asset, total: x.total, left: x.left, n: x.n, leftN: x.leftN })) };
   },
   async trade({ me, b }) {
     if (!PAIRS.includes(b.s) || !["buy", "sell"].includes(b.side)) fail("Invalid market");
@@ -38,10 +39,10 @@ const H = {
     return { ok: true };
   },
   async withdraw({ me, b }) {
-    const a = num(b.amt, 10); if (!/^0x[a-fA-F0-9]{40}$/.test(b.address)) fail("Enter a valid BNB Smart Chain address");
+    if (b.asset !== "USDT" || b.chain !== "BSC") fail("That coin or network is not open for withdrawal yet"); const a = num(b.amt, 10); if (!/^0x[a-fA-F0-9]{40}$/.test(b.address)) fail("Enter a valid BNB Smart Chain address");
     await tx(async (se, d) => {
-      await move(se, d, me, null, "USDT", a, "withdraw", { address: b.address });
-      await d.collection("withdrawals").insertOne({ user: me, address: b.address, asset: "USDT", chain: "BSC", amt: a, status: "pending", at: new Date() }, { session: se });
+      await move(se, d, me, null, "USDT", a, "withdraw", { address: b.address, fee: 1 });
+      await d.collection("withdrawals").insertOne({ user: me, address: b.address, asset: "USDT", chain: "BSC", amt: a, fee: 1, net: r8(a - 1), status: "pending", at: new Date() }, { session: se });
     });
     return { ok: true };
   },
@@ -54,6 +55,15 @@ const H = {
       await d.collection("packets").insertOne({ code, by: me, byUid: uid, asset: b.asset, total, left: total, n, leftN: n, mode: b.mode === "equal" ? "equal" : "random", claims: [], at: new Date() }, { session: se });
     });
     return { code };
+  },
+  async delete({ me, b, d }) {
+    if (b.confirm !== "DELETE") fail("Type DELETE to confirm");
+    const u = await d.collection("users").findOne({ _id: me });
+    if (Object.values(u.bal || {}).some((v) => v > 0.00000001)) fail("Withdraw or spend all balances before deleting your account");
+    if (await d.collection("withdrawals").findOne({ user: me, status: "pending" })) fail("You have a withdrawal in progress");
+    if (await d.collection("packets").findOne({ by: me, leftN: { $gt: 0 } })) fail("You have an unclaimed red packet");
+    await d.collection("users").deleteOne({ _id: me });
+    return { ok: true };
   },
   async claim({ me, uid, b }) {
     return tx(async (se, d) => {
@@ -80,4 +90,3 @@ async function run(req, ctx, method) {
 }
 export const GET = (r, c) => run(r, c, "GET");
 export const POST = (r, c) => run(r, c, "POST");
-      
