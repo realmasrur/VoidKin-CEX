@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { signIn, useSession } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import _ from "lodash";
 import { Wallet, BarChart3, ArrowLeftRight, User, Send, Gift } from "lucide-react";
 import { api, fmt, vol, Coin, In } from "./ui";
@@ -13,7 +13,7 @@ const TABS = [["wallet", "Wallet", Wallet], ["market", "Market", BarChart3], ["t
 function Landing() {
   const feats = [[ArrowLeftRight, "Spot trading with live prices and an order book"], [Send, "KIN Pay: send money to any 6-digit ID"], [Gift, "Red packets for friends and groups"]];
   return (<main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
-    <motion.img initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} src="/logo.jpg" alt="VOIDKIN" className="h-24 w-24 self-start" />
+    <img src="/logo.jpg" alt="VOIDKIN" className="rise h-24 w-24 self-start" />
     <h1 className="mt-6 text-4xl font-extrabold tracking-tight">Trade, pay and gift crypto.</h1><p className="mt-3 text-ink/55">One simple wallet for spot trading, instant transfers between friends, and red packets.</p>
     <div className="mt-8 space-y-3">{feats.map(([I, t]) => <div key={t} className="flex items-center gap-3 text-sm font-medium"><span className="rounded-xl bg-mist p-2.5"><I size={18} /></span>{t}</div>)}</div>
     <button onClick={() => signIn("google")} className="mt-10 w-full rounded-2xl bg-ink py-4 font-semibold text-white transition active:scale-[.98] hover:opacity-90">Continue with Google</button></main>);
@@ -41,12 +41,12 @@ function App({ user }) {
   return (<div className="mx-auto max-w-xl px-4 pb-36 pt-5">
     <header className="mb-5 flex items-center gap-2.5"><img src="/logo.jpg" alt="" className="h-9 w-9" /><div className="text-lg font-extrabold tracking-tight">VOIDKIN</div></header>
     {me?.u.frozen && <div className="mb-4 rounded-2xl bg-down/10 px-4 py-3 text-sm font-medium text-down">Your account is frozen. Trading, transfers and withdrawals are paused. Contact support to resolve it.</div>}
-    <AnimatePresence mode="wait"><motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
+    <div key={tab} className="rise">
       {tab === "wallet" && <WalletTab me={me} user={user} px={px} chg={chg} hide={hide} setHide={setHide} reload={loadMe} go={setTab} openPair={openPair} />}
       {tab === "market" && <MarketTab mk={mk} openPair={openPair} />}
       {tab === "trade" && <TradeTab sym={sym} setSym={setSym} mk={mk} iv={iv} setIv={setIv} me={me} hide={hide} reload={loadMe} />}
       {tab === "me" && <ProfileTab user={user} me={me} px={px} hide={hide} setHide={setHide} reload={loadMe} />}
-    </motion.div></AnimatePresence>
+    </div>
     <nav className="fixed bottom-[calc(env(safe-area-inset-bottom)+14px)] left-1/2 z-30 flex -translate-x-1/2 gap-1 rounded-full bg-ink p-1.5 shadow-2xl shadow-black/25">
       {TABS.map(([id, n, I]) => { const on = tab === id; return <button key={id} onClick={() => setTab(id)} className={`relative flex h-14 w-[74px] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-semibold transition-colors ${on ? "text-ink" : "text-white/55 hover:text-white"}`}>
         {on && <motion.span layoutId="nav" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-full bg-white" />}<I size={20} strokeWidth={on ? 2.4 : 1.9} className="relative" /><span className="relative">{n}</span></button>; })}</nav></div>);

@@ -3,4 +3,11 @@ body{background:#fff;color:#0c0c0f;-webkit-font-smoothing:antialiased}
 input[type=number]{-moz-appearance:textfield}
 input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 ::selection{background:#e9dcfb}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes popin{from{opacity:0;transform:scale(.7) rotate(-6deg)}60%{transform:scale(1.04)}to{opacity:1;transform:none}}
+@keyframes sheetup{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes draw{to{stroke-dashoffset:0}}
+.rise{animation:rise .22s ease-out both}.popin{animation:popin .45s cubic-bezier(.2,.9,.3,1.2) both}.sheetup{animation:sheetup .28s cubic-bezier(.2,.8,.2,1) both}.fade{animation:fade .18s ease-out both}.draw{stroke-dasharray:40;stroke-dashoffset:40;animation:draw .5s .1s ease-out forwards}
+@media(prefers-reduced-motion:reduce){.rise,.popin,.sheetup,.fade{animation:none}.draw{animation:none;stroke-dashoffset:0}}
 .no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{scrollbar-width:none}
