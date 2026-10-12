@@ -3,61 +3,56 @@ import { useEffect, useState, useCallback } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import _ from "lodash";
-import { BarChart3, ArrowLeftRight, Wallet, User, Eye, EyeOff } from "lucide-react";
-import { api, fmt, M, Coin, In, Btn, Card, useAct, Msg } from "./ui";
+import { Wallet, BarChart3, ArrowLeftRight, User, Send, Gift } from "lucide-react";
+import { api, fmt, vol, Coin, In } from "./ui";
 import WalletTab from "./Wallet";
-import ProfileTab from "./Profile";
 import TradeTab from "./Trade";
-const TABS = [["market", "Market", BarChart3], ["trade", "Trade", ArrowLeftRight], ["wallet", "Wallet", Wallet], ["me", "Profile", User]];
+import ProfileTab from "./Profile";
+const TABS = [["wallet", "Wallet", Wallet], ["market", "Market", BarChart3], ["trade", "Trade", ArrowLeftRight], ["me", "Profile", User]];
 
-function Chart({ k, up }) {
-  const [h, setH] = useState(null);
-  if (!k?.length) return <div className="h-56 animate-pulse rounded-xl bg-white/5" />;
-  const mn = Math.min(...k), mx = Math.max(...k), W = 600, H = 200, c = up ? "#2ee59d" : "#ff5470";
-  const y = (v) => H - ((v - mn) / (mx - mn || 1)) * (H - 24) - 12, x = (i) => (i / (k.length - 1)) * W;
-  const pts = k.map((v, i) => `${x(i)},${y(v)}`).join(" "), i = h ?? k.length - 1;
-  return (<div className="relative"><div className="absolute left-0 top-0 text-sm text-white/60">{fmt(k[i])} USDT</div>
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-56 w-full cursor-crosshair pt-5" onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); setH(Math.max(0, Math.min(k.length - 1, Math.round(((e.clientX - r.left) / r.width) * (k.length - 1))))); }} onMouseLeave={() => setH(null)}>
-      <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={c} stopOpacity=".35" /><stop offset="1" stopColor={c} stopOpacity="0" /></linearGradient></defs>
-      <polygon points={`0,${H} ${pts} ${W},${H}`} fill="url(#g)" /><polyline points={pts} fill="none" stroke={c} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      {h !== null && <g><line x1={x(h)} x2={x(h)} y1="0" y2={H} stroke="#fff3" /><circle cx={x(h)} cy={y(k[h])} r="4" fill={c} /></g>}</svg></div>);
-}
 function Landing() {
-  return (<main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 text-center">
-    <motion.img initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} src="/logo.jpg" alt="VOIDKIN" className="mb-8 h-28 w-28 rounded-3xl mix-blend-screen" />
-    <h1 className="text-4xl font-bold tracking-tight">VOIDKIN</h1><p className="mt-3 text-white/60">Trade spot markets, pay anyone by their 6-digit ID, and send red packets to your people.</p>
-    <button onClick={() => signIn("google")} className="mt-10 w-full rounded-xl bg-white py-3.5 font-semibold text-black transition active:scale-[.98] hover:bg-white/90">Continue with Google</button></main>);
+  const feats = [[ArrowLeftRight, "Spot trading with live prices and an order book"], [Send, "KIN Pay: send money to any 6-digit ID"], [Gift, "Red packets for friends and groups"]];
+  return (<main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
+    <motion.img initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} src="/logo.jpg" alt="VOIDKIN" className="h-24 w-24 self-start" />
+    <h1 className="mt-6 text-4xl font-extrabold tracking-tight">Trade, pay and gift crypto.</h1><p className="mt-3 text-ink/55">One simple wallet for spot trading, instant transfers between friends, and red packets.</p>
+    <div className="mt-8 space-y-3">{feats.map(([I, t]) => <div key={t} className="flex items-center gap-3 text-sm font-medium"><span className="rounded-xl bg-mist p-2.5"><I size={18} /></span>{t}</div>)}</div>
+    <button onClick={() => signIn("google")} className="mt-10 w-full rounded-2xl bg-ink py-4 font-semibold text-white transition active:scale-[.98] hover:opacity-90">Continue with Google</button></main>);
+}
+function MarketTab({ mk, openPair }) {
+  const [f, setF] = useState("all"), [q, setQ] = useState("");
+  const base = f === "up" ? _.orderBy(_.filter(mk.t, (x) => x.c >= 0), "c", "desc") : f === "down" ? _.orderBy(_.filter(mk.t, (x) => x.c < 0), "c", "asc") : f === "vol" ? _.orderBy(mk.t, "v", "desc") : mk.t;
+  const rows = _.filter(base, (x) => x.s.toLowerCase().includes(q.toLowerCase()));
+  return (<div className="space-y-4"><h1 className="text-2xl font-bold">Markets</h1>
+    <In placeholder="Search coin" value={q} onChange={(e) => setQ(e.target.value)} />
+    <div className="no-scrollbar flex gap-2 overflow-x-auto">{[["all", "All"], ["up", "Gainers"], ["down", "Losers"], ["vol", "Volume"]].map(([k, n]) => <button key={k} onClick={() => setF(k)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${f === k ? "bg-ink text-white" : "bg-mist text-ink/60"}`}>{n}</button>)}</div>
+    <div className="space-y-2">{!mk.t.length && [0, 1, 2, 3].map((i) => <div key={i} className="h-[72px] animate-pulse rounded-3xl bg-mist" />)}
+      {rows.map((x) => <button key={x.s} onClick={() => openPair(x.s)} className="flex w-full items-center gap-3 rounded-3xl bg-mist p-4 text-left transition active:scale-[.99]"><Coin s={x.s} size={40} /><div className="flex-1"><div className="font-bold">{x.s}<span className="font-medium text-ink/40">/USDT</span></div><div className="text-xs text-ink/45">Volume {vol(x.v)}</div></div>
+        <div className="text-right"><div className="font-bold">{fmt(x.p)}</div><div className={`mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-xs font-semibold ${x.c >= 0 ? "bg-up/10 text-up" : "bg-down/10 text-down"}`}>{x.c >= 0 ? "+" : ""}{x.c.toFixed(2)}%</div></div></button>)}
+      {mk.t.length > 0 && !rows.length && <div className="py-10 text-center text-ink/45">No coin matches your search.</div>}</div></div>);
 }
 function App({ user }) {
-  const [tab, setTab] = useState("market"), [sym, setSym] = useState("BTC"), [iv, setIv] = useState("15m"), [mk, setMk] = useState({ t: [], k: null }), [me, setMe] = useState(null), [hide, setHideS] = useState(false), [f, setF] = useState({ side: "buy" });
-  const loadMe = useCallback(() => api("me").then(setMe).catch(() => {}), []), [msg, act, setMsg] = useAct(loadMe);
+  const [tab, setTab] = useState("wallet"), [sym, setSym] = useState("BTC"), [iv, setIv] = useState("1h"), [mk, setMk] = useState({ t: [], k: null }), [me, setMe] = useState(null), [hide, setHideS] = useState(false);
+  const loadMe = useCallback(() => api("me").then(setMe).catch(() => {}), []);
   const setHide = (v) => { setHideS(v); localStorage.setItem("vk-hide", v ? "1" : "0"); };
   useEffect(() => setHideS(localStorage.getItem("vk-hide") === "1"), []);
   useEffect(() => { loadMe(); const t = setInterval(loadMe, 10000); return () => clearInterval(t); }, [loadMe]);
   useEffect(() => { const go = () => api(`market?s=${sym}&i=${iv}`).then(setMk).catch(() => {}); go(); const t = setInterval(go, 5000); return () => clearInterval(t); }, [sym, iv]);
-  const px = _.fromPairs(mk.t.map((x) => [x.s, x.p])), bal = me?.u.bal || {}, tk = mk.t.find((x) => x.s === sym), up = (tk?.c ?? 0) >= 0;
-  const chartBlock = <Card><div className="mb-3 flex items-end justify-between"><div className="flex items-center gap-3"><Coin s={sym} size={36} /><div><div className="text-sm text-white/60">{sym}/USDT</div><div className="text-3xl font-bold">{tk ? fmt(tk.p) : "-"}</div></div></div><div className={up ? "text-emerald-400" : "text-rose-400"}>{tk ? `${up ? "+" : ""}${tk.c.toFixed(2)}%` : ""}</div></div>
-    <Chart k={mk.k} up={up} /><div className="mt-3 flex gap-2">{["15m", "1h", "4h", "1d"].map((x) => <button key={x} onClick={() => setIv(x)} className={`rounded-lg px-3 py-1.5 text-sm transition ${iv === x ? "bg-kin" : "bg-white/5 hover:bg-white/10"}`}>{x}</button>)}</div></Card>;
-  const go = (id) => { setTab(id); setMsg(null); };
-  return (<div className="mx-auto max-w-5xl px-4 pb-36 pt-5 md:pb-10">
-    <header className="mb-6 flex items-center gap-3"><img src="/logo.jpg" alt="" className="h-10 w-10 rounded-xl mix-blend-screen" /><div className="text-xl font-bold">VOIDKIN</div>
-      <button aria-label={hide ? "Show balances" : "Hide balances"} onClick={() => setHide(!hide)} className="ml-auto rounded-xl bg-white/5 p-3 ring-1 ring-white/10 transition hover:bg-white/10">{hide ? <EyeOff size={18} /> : <Eye size={18} />}</button></header>
-    <nav className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+14px)] z-20 mx-auto flex max-w-md items-stretch rounded-[28px] bg-[#130e26]/90 p-2 shadow-2xl shadow-black/60 ring-1 ring-white/10 backdrop-blur-xl md:static md:mb-6 md:max-w-none md:justify-start md:gap-2 md:rounded-2xl md:bg-transparent md:p-0 md:shadow-none md:ring-0">
-      {TABS.map(([id, n, I]) => { const on = tab === id; return <button key={id} onClick={() => go(id)} className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 rounded-3xl transition-colors md:h-auto md:flex-none md:flex-row md:gap-2 md:rounded-xl md:px-5 md:py-2.5 ${on ? "text-white" : "text-white/45 hover:text-white/80"}`}>
-        {on && <motion.span layoutId="pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-3xl bg-kin shadow-lg shadow-kin/40 md:rounded-xl" />}
-        <motion.span animate={{ y: on ? -1 : 0, scale: on ? 1.12 : 1 }} transition={{ type: "spring", stiffness: 400, damping: 18 }} className="relative"><I size={24} strokeWidth={on ? 2.3 : 1.8} /></motion.span><span className="relative text-xs font-medium">{n}</span></button>; })}</nav>
-    {me?.u.frozen && <div className="mb-4 rounded-xl bg-rose-500/10 px-4 py-3 text-sm text-rose-300 ring-1 ring-rose-500/30">Your account is frozen, so trading, transfers and withdrawals are paused. Contact support to resolve it.</div>}
-    <div className="mb-4"><Msg m={msg} /></div>
-    <AnimatePresence mode="wait"><motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-      {tab === "market" && <div className="grid gap-4 md:grid-cols-5"><div className="md:col-span-3">{chartBlock}</div>
-        <Card className="md:col-span-2"><div className="mb-2 text-sm text-white/60">Markets (USDT)</div>{mk.t.map((x) => <button key={x.s} onClick={() => setSym(x.s)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 transition ${sym === x.s ? "bg-kin/20" : "hover:bg-white/5"}`}><Coin s={x.s} /><span className="flex-1 text-left font-semibold">{x.s}</span><span className="text-right"><div>{fmt(x.p)}</div><div className={`text-xs ${x.c >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{x.c >= 0 ? "+" : ""}{x.c.toFixed(2)}%</div></span></button>)}</Card></div>}
-      {tab === "trade" && <TradeTab sym={sym} setSym={setSym} mk={mk} tk={tk} me={me} hide={hide} chart={chartBlock} reload={loadMe} />}
-      {tab === "wallet" && <WalletTab me={me} px={px} hide={hide} reload={loadMe} />}
+  const px = _.fromPairs(mk.t.map((x) => [x.s, x.p])), chg = _.fromPairs(mk.t.map((x) => [x.s, x.c])), openPair = (s) => { setSym(s); setTab("trade"); };
+  return (<div className="mx-auto max-w-xl px-4 pb-36 pt-5">
+    <header className="mb-5 flex items-center gap-2.5"><img src="/logo.jpg" alt="" className="h-9 w-9" /><div className="text-lg font-extrabold tracking-tight">VOIDKIN</div></header>
+    {me?.u.frozen && <div className="mb-4 rounded-2xl bg-down/10 px-4 py-3 text-sm font-medium text-down">Your account is frozen. Trading, transfers and withdrawals are paused. Contact support to resolve it.</div>}
+    <AnimatePresence mode="wait"><motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
+      {tab === "wallet" && <WalletTab me={me} user={user} px={px} chg={chg} hide={hide} setHide={setHide} reload={loadMe} go={setTab} openPair={openPair} />}
+      {tab === "market" && <MarketTab mk={mk} openPair={openPair} />}
+      {tab === "trade" && <TradeTab sym={sym} setSym={setSym} mk={mk} iv={iv} setIv={setIv} me={me} hide={hide} reload={loadMe} />}
       {tab === "me" && <ProfileTab user={user} me={me} px={px} hide={hide} setHide={setHide} reload={loadMe} />}
-    </motion.div></AnimatePresence></div>);
+    </motion.div></AnimatePresence>
+    <nav className="fixed bottom-[calc(env(safe-area-inset-bottom)+14px)] left-1/2 z-30 flex -translate-x-1/2 gap-1 rounded-full bg-ink p-1.5 shadow-2xl shadow-black/25">
+      {TABS.map(([id, n, I]) => { const on = tab === id; return <button key={id} onClick={() => setTab(id)} className={`relative flex h-14 w-[74px] flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-semibold transition-colors ${on ? "text-ink" : "text-white/55 hover:text-white"}`}>
+        {on && <motion.span layoutId="nav" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-full bg-white" />}<I size={20} strokeWidth={on ? 2.4 : 1.9} className="relative" /><span className="relative">{n}</span></button>; })}</nav></div>);
 }
 export default function Page() {
   const { data, status } = useSession();
-  if (status === "loading") return <div className="grid min-h-screen place-items-center"><img src="/logo.jpg" alt="" className="h-16 w-16 animate-pulse rounded-2xl mix-blend-screen" /></div>;
+  if (status === "loading") return <div className="grid min-h-screen place-items-center"><img src="/logo.jpg" alt="" className="h-16 w-16 animate-pulse" /></div>;
   return data?.user?.uid ? <App user={data.user} /> : <Landing />;
 }
