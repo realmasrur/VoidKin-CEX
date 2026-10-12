@@ -23,7 +23,7 @@ const H = {
     const t = await d.collection("tx").find({ $or: [{ from: me }, { to: me }] }).sort({ at: -1 }).limit(100).toArray();
     const p = await d.collection("packets").find({ by: me }).sort({ at: -1 }).limit(15).toArray();
     const st = Object.fromEntries((await d.collection("tx").aggregate([{ $match: { $or: [{ from: me }, { to: me }], type: { $in: ["deposit", "withdraw"] }, asset: "USDT" } }, { $group: { _id: "$type", s: { $sum: "$amt" } } }]).toArray()).map((x) => [x._id, x.s]));
-    return { st, admin: isAdmin(email), u: { uid: u.uid, name: u.name, email: u.email, since: u.createdAt, bal: u.bal, addr: u.addr, frozen: !!u.frozen, lock: u.lock || {}, twofa: !!u.totp?.on }, t: t.map((x) => ({ type: x.type, asset: x.asset, amt: x.amt, meta: x.meta, at: x.at, in: String(x.to) === String(me) })), p: p.map((x) => ({ code: x.code, asset: x.asset, total: x.total, left: x.left, n: x.n, leftN: x.leftN })) };
+    return { st, admin: isAdmin(email), u: { uid: u.uid, name: u.name, email: u.email, since: u.createdAt, bal: u.bal, addr: u.addr, frozen: !!u.frozen, lock: u.lock || {}, twofa: !!u.totp?.on, verified: !!u.verified }, t: t.map((x) => ({ type: x.type, asset: x.asset, amt: x.amt, meta: x.meta, at: x.at, in: String(x.to) === String(me) })), p: p.map((x) => ({ code: x.code, asset: x.asset, total: x.total, left: x.left, n: x.n, leftN: x.leftN })) };
   },
   async trade({ me, b }) {
     if (!PAIRS.includes(b.s) || !["buy", "sell"].includes(b.side)) fail("Invalid market");
@@ -79,6 +79,15 @@ const H = {
     if (b.op !== "reject") fail("Unknown action");
     await tx(async (se, d) => { const w = await d.collection("withdrawals").findOneAndUpdate({ _id, status: "pending" }, { $set: { status: "rejected" } }, { session: se }); if (!w) fail("Already handled"); await move(se, d, null, w.user, w.asset, w.amt, "refund", { id: b.id }); });
     return { ok: true };
+  },
+  async lookup({ q, d }) {
+    const id = String(q.get("uid") || "").trim(); if (!/^\d{6}$/.test(id)) fail("Enter a 6-digit ID");
+    const u = await d.collection("users").findOne({ uid: id }, { projection: { name: 1, verified: 1 } }); if (!u) fail("No VOIDKIN user has that ID");
+    return { name: String(u.name || "VOIDKIN user").split(" ")[0], verified: !!u.verified };
+  },
+  async adminVerify({ b, d }) {
+    const r = await d.collection("users").updateOne({ uid: String(b.uid).trim() }, b.verified ? { $set: { verified: true, verifiedAt: new Date() } } : { $unset: { verified: "", verifiedAt: "" } });
+    if (!r.matchedCount) fail("No user with that ID"); return { ok: true };
   },
   async adminFreeze({ b, d }) {
     const r = await d.collection("users").updateOne({ uid: String(b.uid).trim() }, { $set: { frozen: !!b.frozen } });
