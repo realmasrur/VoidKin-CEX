@@ -1,1 +1,1 @@
-module.exports={content:["./app/**/*.js"],theme:{extend:{colors:{void:"#08060f",kin:"#7c33e6"},fontFamily:{sans:["var(--f)","sans-serif"]}}}}
+module.exports={content:["./app/**/*.js"],theme:{extend:{colors:{ink:"#0c0c0f",mist:"#f4f4f6",line:"#e8e8ed",kin:"#7c33e6",up:"#0ea66b",down:"#e5484d"},fontFamily:{sans:["var(--f)","system-ui","sans-serif"]}}}}
