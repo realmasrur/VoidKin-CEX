@@ -3,6 +3,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import _ from "lodash";
 import { signOut } from "next-auth/react";
+import { QRCodeSVG } from "qrcode.react";
 import { Settings, Send, Gift, History, ChevronLeft, ChevronRight, Trash2, LogOut } from "lucide-react";
 import { api, fmt, M, portfolio, label, TX, In, Sel, Btn, Card, Copyable, useAct, Msg } from "./ui";
 const FILTERS = [["all", "All"], ["trade", "Trades"], ["deposit", "Deposits"], ["withdraw", "Withdrawals"], ["kinpay", "KIN Pay"], ["rp", "Red packets"]];
@@ -29,13 +30,21 @@ function Hist({ me, hide }) {
     {!rows.length && <Card className="py-10 text-center text-white/50">No activity here yet.</Card>}
     {_.map(days, (list, day) => <Card key={day}><div className="mb-1 text-sm text-white/50">{day}</div>{list.map((t, i) => { const I = TX[t.type][1]; return <div key={i} className="flex items-center gap-3 border-b border-white/5 py-3 text-sm last:border-0"><span className="rounded-xl bg-white/5 p-2.5"><I size={16} /></span><div className="flex-1"><div>{label(t)}</div><div className="text-xs text-white/40">{new Date(t.at).toLocaleTimeString([], { timeStyle: "short" })}</div></div><span className={t.in ? "text-emerald-400" : "text-rose-400"}>{M(hide, `${t.in ? "+" : "-"}${fmt(t.amt, 8)} ${t.asset}`)}</span></div>; })}</Card>)}</div>;
 }
-function Cfg({ user, me, hide, setHide }) {
+function TwoFA({ me, reload }) {
+  const [s, setS] = useState(null), [code, setCode] = useState(""), [msg, run, setMsg] = useAct(reload), on = me?.u.twofa;
+  const start = async () => { try { setS(await api("twofa", { op: "setup" })); setMsg(null); } catch (e) { setMsg({ ok: false, t: e.message }); } };
+  const done = async (op) => { const r = await run("twofa", { op, code }, () => (op === "enable" ? "Two-factor authentication is on." : "Two-factor authentication is off.")); if (r) { setS(null); setCode(""); } };
+  return <Card className="space-y-3"><div className="flex items-center justify-between gap-3"><div><div className="font-semibold">Two-factor authentication</div><div className="text-sm text-white/50">{on ? "On. Required for every withdrawal." : "Required to withdraw. Use an authenticator app."}</div></div>{!on && !s && <button onClick={start} className="shrink-0 rounded-xl bg-kin px-4 py-2 text-sm font-semibold">Turn on</button>}</div>
+    {s && <div className="space-y-3 text-center"><div className="mx-auto w-fit rounded-2xl bg-white p-3"><QRCodeSVG value={s.uri} size={160} /></div><div className="text-sm text-white/60">Scan with Google Authenticator or Authy, or type this key in by hand.</div><Copyable text={s.secret} /></div>}
+    {(s || on) && <><In inputMode="numeric" maxLength={6} placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value)} /><Btn c={on ? "bg-white/10" : "bg-kin"} onClick={() => done(on ? "disable" : "enable")}>{on ? "Turn off" : "Confirm and turn on"}</Btn></>}<Msg m={msg} /></Card>;
+}
+function Cfg({ user, me, hide, setHide, reload }) {
   const [open, setOpen] = useState(false), [txt, setTxt] = useState(""), [err, setErr] = useState(""), u = me?.u;
   const del = async () => { try { await api("delete", { confirm: txt }); signOut({ callbackUrl: "/" }); } catch (e) { setErr(e.message); } };
   const R = ({ a, b }) => <div className="flex justify-between gap-4 py-2.5 text-sm"><span className="text-white/60">{a}</span><span className="break-all text-right">{b}</span></div>;
   return <div className="space-y-4"><Card className="divide-y divide-white/5"><R a="Name" b={u?.name} /><R a="Email" b={u?.email} /><R a="User ID" b={u?.uid} /><R a="Member since" b={u?.since ? new Date(u.since).toLocaleDateString(undefined, { dateStyle: "long" }) : ""} /></Card>
-    <Card><button onClick={() => setHide(!hide)} className="flex w-full items-center justify-between"><span className="text-left"><div className="font-semibold">Hide balances</div><div className="text-sm text-white/50">Mask amounts across the app</div></span><span className={`flex h-7 w-12 items-center rounded-full p-1 transition ${hide ? "bg-kin" : "bg-white/15"}`}><motion.span layout transition={{ type: "spring", stiffness: 500, damping: 30 }} className={`h-5 w-5 rounded-full bg-white ${hide ? "ml-auto" : ""}`} /></span></button></Card>
-    <Btn c="bg-white/10" onClick={() => signOut({ callbackUrl: "/" })}><span className="flex items-center justify-center gap-2"><LogOut size={16} />Sign out</span></Btn>
+    <TwoFA me={me} reload={reload} /><Card><button onClick={() => setHide(!hide)} className="flex w-full items-center justify-between"><span className="text-left"><div className="font-semibold">Hide balances</div><div className="text-sm text-white/50">Mask amounts across the app</div></span><span className={`flex h-7 w-12 items-center rounded-full p-1 transition ${hide ? "bg-kin" : "bg-white/15"}`}><motion.span layout transition={{ type: "spring", stiffness: 500, damping: 30 }} className={`h-5 w-5 rounded-full bg-white ${hide ? "ml-auto" : ""}`} /></span></button></Card>
+    {me?.admin && <a href="/admin" className="block rounded-xl bg-kin/20 py-3.5 text-center font-semibold text-kin">Admin panel</a>}<Btn c="bg-white/10" onClick={() => signOut({ callbackUrl: "/" })}><span className="flex items-center justify-center gap-2"><LogOut size={16} />Sign out</span></Btn>
     <Btn c="bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30" onClick={() => setOpen(true)}><span className="flex items-center justify-center gap-2"><Trash2 size={16} />Delete account</span></Btn>
     <AnimatePresence>{open && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-30 grid place-items-end bg-black/70 p-4 sm:place-items-center" onClick={() => setOpen(false)}>
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="w-full max-w-sm space-y-3 rounded-3xl bg-[#14102a] p-6 ring-1 ring-white/10">
@@ -46,14 +55,14 @@ function Cfg({ user, me, hide, setHide }) {
 export default function ProfileTab({ user, me, px, hide, setHide, reload }) {
   const [view, setView] = useState("home"), st = me?.st || {}, u = me?.u, back = () => setView("home");
   const stat = (n, v) => <div className="rounded-2xl bg-white/[.04] p-3.5 ring-1 ring-white/10"><div className="text-xs text-white/50">{n}</div><div className="mt-1 truncate font-semibold">{M(hide, fmt(v))}</div></div>;
-  const views = { pay: ["KIN Pay", <Pay me={me} reload={reload} />], packets: ["Red packets", <Packets me={me} reload={reload} />], history: ["History", <Hist me={me} hide={hide} />], settings: ["Settings", <Cfg user={user} me={me} hide={hide} setHide={setHide} />] };
+  const views = { pay: ["KIN Pay", <Pay me={me} reload={reload} />], packets: ["Red packets", <Packets me={me} reload={reload} />], history: ["History", <Hist me={me} hide={hide} />], settings: ["Settings", <Cfg user={user} me={me} hide={hide} setHide={setHide} reload={reload} />] };
   return <AnimatePresence mode="wait"><motion.div key={view} initial={{ opacity: 0, x: view === "home" ? -20 : 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
     {view !== "home" ? <Sub title={views[view][0]} back={back}>{views[view][1]}</Sub> :
       <div className="mx-auto max-w-lg space-y-5"><div className="relative flex flex-col items-center pt-2 text-center">
         <button aria-label="Settings" onClick={() => setView("settings")} className="absolute right-0 top-0 rounded-xl bg-white/5 p-3 ring-1 ring-white/10 transition hover:bg-white/10"><Settings size={18} /></button>
         {user.image ? <img src={user.image} referrerPolicy="no-referrer" alt="" className="h-24 w-24 rounded-full ring-4 ring-kin/40" /> : <div className="grid h-24 w-24 place-items-center rounded-full bg-kin text-3xl font-bold">{(user.name || "V")[0]}</div>}
         <div className="mt-3 text-xl font-bold">{user.name}</div><div className="mt-2 w-44"><Copyable text={user.uid} label={`ID ${user.uid}`} /></div></div>
-        <div className="grid grid-cols-3 gap-3">{stat("Portfolio (USDT)", portfolio(u?.bal || {}, px))}{stat("Deposited", st.deposit || 0)}{stat("Withdrawn", st.withdraw || 0)}</div>
+        <div className="grid grid-cols-3 gap-3">{stat("Portfolio (USDT)", portfolio(u?.bal || {}, px, u?.lock))}{stat("Deposited", st.deposit || 0)}{stat("Withdrawn", st.withdraw || 0)}</div>
         <div className="space-y-3"><Item I={Send} t="KIN Pay" d="Send money to any VOIDKIN ID" onClick={() => setView("pay")} /><Item I={Gift} t="Red packets" d="Create one or open a code" onClick={() => setView("packets")} /><Item I={History} t="History" d="Trades, deposits, withdrawals and transfers" onClick={() => setView("history")} /></div></div>}
   </motion.div></AnimatePresence>;
 }

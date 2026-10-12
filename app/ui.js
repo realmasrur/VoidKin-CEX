@@ -7,7 +7,7 @@ import { ASSETS } from "@/lib/ledger";
 export const api = (a, body) => fetch("/api/" + a, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}).then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; });
 export const fmt = (n, d = 2) => (+n).toLocaleString(undefined, { maximumFractionDigits: n < 1 ? 6 : d });
 export const M = (hide, v) => (hide ? "••••" : v);
-export const portfolio = (bal, px) => _.sumBy(ASSETS, (a) => (a === "USDT" ? 1 : px[a] || 0) * (bal[a] || 0));
+export const portfolio = (bal, px, lock = {}) => _.sumBy(ASSETS, (a) => (a === "USDT" ? 1 : px[a] || 0) * ((bal[a] || 0) + (lock[a] || 0)));
 export const Coin = ({ s, size = 32 }) => <img src={`https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/${s.toLowerCase()}.svg`} width={size} height={size} alt={s} className="shrink-0 rounded-full" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />;
 const field = "w-full rounded-xl bg-white/5 px-3.5 py-3 outline-none ring-1 ring-white/10 transition focus:ring-2 focus:ring-kin";
 export const In = (p) => <input {...p} className={field} />;
@@ -24,5 +24,5 @@ export function useAct(reload) {
   return [msg, run, setMsg];
 }
 export const Msg = ({ m }) => m ? <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className={`rounded-xl px-4 py-3 text-sm ring-1 ${m.ok ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/30" : "bg-rose-500/10 text-rose-300 ring-rose-500/30"}`}>{m.t}</motion.div> : null;
-export const TX = { deposit: ["Deposit", ArrowDownToLine], withdraw: ["Withdrawal", ArrowUpFromLine], trade: ["Trade", ArrowLeftRight], kinpay: ["KIN Pay", Send], rp_create: ["Red packet created", Gift], rp_claim: ["Red packet received", Gift] };
+export const TX = { deposit: ["Deposit", ArrowDownToLine], withdraw: ["Withdrawal", ArrowUpFromLine], trade: ["Trade", ArrowLeftRight], kinpay: ["KIN Pay", Send], rp_create: ["Red packet created", Gift], rp_claim: ["Red packet received", Gift], faucet: ["Test funds", Gift], refund: ["Withdrawal refunded", ArrowDownToLine] };
 export const label = (t) => t.type === "kinpay" ? (t.in ? `KIN Pay from ${t.meta.from}` : `KIN Pay to ${t.meta.to}`) : t.type === "trade" ? `${t.meta.s} trade, ${t.in ? "received" : "paid"}` : TX[t.type][0];

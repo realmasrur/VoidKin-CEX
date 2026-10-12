@@ -7,6 +7,7 @@ import { BarChart3, ArrowLeftRight, Wallet, User, Eye, EyeOff } from "lucide-rea
 import { api, fmt, M, Coin, In, Btn, Card, useAct, Msg } from "./ui";
 import WalletTab from "./Wallet";
 import ProfileTab from "./Profile";
+import TradeTab from "./Trade";
 const TABS = [["market", "Market", BarChart3], ["trade", "Trade", ArrowLeftRight], ["wallet", "Wallet", Wallet], ["me", "Profile", User]];
 
 function Chart({ k, up }) {
@@ -45,16 +46,12 @@ function App({ user }) {
       {TABS.map(([id, n, I]) => { const on = tab === id; return <button key={id} onClick={() => go(id)} className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 rounded-3xl transition-colors md:h-auto md:flex-none md:flex-row md:gap-2 md:rounded-xl md:px-5 md:py-2.5 ${on ? "text-white" : "text-white/45 hover:text-white/80"}`}>
         {on && <motion.span layoutId="pill" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 rounded-3xl bg-kin shadow-lg shadow-kin/40 md:rounded-xl" />}
         <motion.span animate={{ y: on ? -1 : 0, scale: on ? 1.12 : 1 }} transition={{ type: "spring", stiffness: 400, damping: 18 }} className="relative"><I size={24} strokeWidth={on ? 2.3 : 1.8} /></motion.span><span className="relative text-xs font-medium">{n}</span></button>; })}</nav>
+    {me?.u.frozen && <div className="mb-4 rounded-xl bg-rose-500/10 px-4 py-3 text-sm text-rose-300 ring-1 ring-rose-500/30">Your account is frozen, so trading, transfers and withdrawals are paused. Contact support to resolve it.</div>}
     <div className="mb-4"><Msg m={msg} /></div>
     <AnimatePresence mode="wait"><motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
       {tab === "market" && <div className="grid gap-4 md:grid-cols-5"><div className="md:col-span-3">{chartBlock}</div>
         <Card className="md:col-span-2"><div className="mb-2 text-sm text-white/60">Markets (USDT)</div>{mk.t.map((x) => <button key={x.s} onClick={() => setSym(x.s)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 transition ${sym === x.s ? "bg-kin/20" : "hover:bg-white/5"}`}><Coin s={x.s} /><span className="flex-1 text-left font-semibold">{x.s}</span><span className="text-right"><div>{fmt(x.p)}</div><div className={`text-xs ${x.c >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{x.c >= 0 ? "+" : ""}{x.c.toFixed(2)}%</div></span></button>)}</Card></div>}
-      {tab === "trade" && <div className="grid gap-4 md:grid-cols-5"><div className="md:col-span-3">{chartBlock}</div>
-        <Card className="space-y-3 md:col-span-2"><div className="grid grid-cols-2 gap-2">{["buy", "sell"].map((s) => <button key={s} onClick={() => setF((x) => ({ ...x, side: s }))} className={`rounded-xl py-2.5 font-semibold capitalize transition ${f.side === s ? (s === "buy" ? "bg-emerald-500 text-black" : "bg-rose-500") : "bg-white/5"}`}>{s} {sym}</button>)}</div>
-          <select value={sym} onChange={(e) => setSym(e.target.value)} className="w-full rounded-xl bg-[#17122a] px-3.5 py-3 ring-1 ring-white/10">{mk.t.map((x) => <option key={x.s}>{x.s}</option>)}</select>
-          <In type="number" placeholder={f.side === "buy" ? "Amount to spend (USDT)" : `Amount to sell (${sym})`} value={f.amt || ""} onChange={(e) => setF((x) => ({ ...x, amt: e.target.value }))} />
-          <div className="text-sm text-white/60">Available: {M(hide, fmt(bal[f.side === "buy" ? "USDT" : sym] || 0, 8))} {f.side === "buy" ? "USDT" : sym}{tk && f.amt > 0 && <> - You get about {fmt(f.side === "buy" ? (f.amt / tk.p) * 0.999 : f.amt * tk.p * 0.999, 6)} {f.side === "buy" ? sym : "USDT"} after the 0.1% fee</>}</div>
-          <Btn c={f.side === "buy" ? "bg-emerald-500 text-black" : "bg-rose-500"} onClick={() => act("trade", { s: sym, side: f.side, amt: f.amt }, (r) => `Order filled at ${fmt(r.p)} USDT`)}>{f.side === "buy" ? "Buy" : "Sell"} {sym} at market</Btn></Card></div>}
+      {tab === "trade" && <TradeTab sym={sym} setSym={setSym} mk={mk} tk={tk} me={me} hide={hide} chart={chartBlock} reload={loadMe} />}
       {tab === "wallet" && <WalletTab me={me} px={px} hide={hide} reload={loadMe} />}
       {tab === "me" && <ProfileTab user={user} me={me} px={px} hide={hide} setHide={setHide} reload={loadMe} />}
     </motion.div></AnimatePresence></div>);
