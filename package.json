@@ -5,7 +5,9 @@
   "dev": "next dev",
   "build": "next build",
   "start": "next start",
-  "worker": "node worker/deposits.mjs"
+  "worker": "node worker/deposits.mjs",
+  "worker:signer": "node worker/signer.mjs",
+  "worker:hedge": "node worker/hedge.mjs"
  },
  "dependencies": {
   "next": "^15.0.0",
